@@ -8,11 +8,15 @@ const Launchpad = require( "launchpad-mini" ),
       program = require( "commander" ),
       request = require("request");
 
+const today = Date.today(),
+      numberDays = 56,
+      numberRows = 7;
+
 let err = null;
 
-const today = Date.today(),
-      firstDay = today.clone().removeDays(56),
-      numberRows = 7;
+let tmpNumberDays = numberDays - (7 - today.getDay());
+
+const firstDay = today.clone().removeDays(tmpNumberDays);
 
 const levelSteps = {
     min : 1,
@@ -23,7 +27,8 @@ const levelSteps = {
 const levelColors = {
     min : pad.green.low,
     mid : pad.green.medium,
-    max : pad.green.full
+    max : pad.green.full,
+    disabled : pad.red.low
 }
 
 let usernameIsValid = (url, callback) => {
@@ -76,22 +81,39 @@ let setGrid = ( allContributions ) => {
         pad.reset();
         pad.flash = false;
 
-        allContributions.reverse();
-        let loop = ( n ) => {
+        for (var n = 0; n < allContributions.length; n++) {
             let contribution = allContributions[n];
 
-            let col = Math.floor( (n + 1) / numberRows );
             let row = (n + 1) % numberRows;
+            let col = Math.floor( ( n + 1 ) / numberRows );
 
-            contribution.color = ( contribution.level === 3 ) ? levelColors.max : ( contribution.level === 2 ) ? levelColors.mid : ( contribution.level === 1 ) ? levelColors.min : pad.off;
+            if (row !== 0) {
+                col = col + 1;
+            } else {
+                row = numberRows;
+            }
 
-            pad.col( contribution.color, [ [col, row] ])
-                .then( () => n > 0 ? loop( n - 1 ) : null )
-                .catch( ( err ) => console.error( "Oh damn : ", err ) );
+            row = row - 1;
+            col = col - 1;
+
+            contribution.color = ( contribution.level === 3 ) ? levelColors.max : ( contribution.level === 2 ) ? levelColors.mid : ( contribution.level === 1 ) ? levelColors.min : ( contribution.level === 0 ) ? pad.off : levelColors.disabled;
+
+            pad.col( contribution.color, [ [col, row] ]);
         };
+        
+        // Disable last row
+        pad.col( levelColors.disabled, pad.fromMap(
+            '--------o' +
+            '--------o' +
+            '--------o' +
+            '--------o' +
+            '--------o' +
+            '--------o' +
+            '--------o' +
+            'xxxxxxxxo' +
+            'oooooooo '
+        ) );
 
-
-        loop( allContributions.length - 1 );    
     } );
 }
 
@@ -103,31 +125,43 @@ let gaunchpad = (username) => {
                 getValidContributions( userUrl, ( validContributions ) => {
                     if ( validContributions !== null ) {
                         let allContributions = [];
+                        let tmpAllContributions = [];
                         let tmpDay = today.clone().clearUTCTime();
-                        while ( tmpDay.isAfter( firstDay ) ) {
-                            let tmpContribution = [];
 
-                            let defaultContribution = {
-                                "date" : tmpDay.clone(),
-                                "level" : 0
-                            };
+                        for (var i = 0; i < numberDays; i++) {
+                            if ( tmpDay.isAfter( firstDay ) ) {
+                                let tmpContribution = [];
 
-                            tmpContribution = validContributions.filter( ( obj ) => {
-                                if ( Date.equals( obj.date, tmpDay ) ) {
-                                    return true;
-                                } else {
-                                    return false;
+                                let defaultContribution = {
+                                    "date" : tmpDay.clone(),
+                                    "level" : 0
+                                };
+
+                                tmpContribution = validContributions.filter( ( obj ) => {
+                                    if ( Date.equals( obj.date, tmpDay ) ) {
+                                        return true;
+                                    } else {
+                                        return false;
+                                    }
+                                });
+
+                                if ( tmpContribution.length > 0 ) {
+                                    allContributions.push( tmpContribution[0] );
+                                } else {
+                                    allContributions.push( defaultContribution );
                                 }
-                            });
-
-                            if ( tmpContribution.length > 0 ) {
-                                allContributions.push( tmpContribution[0] );
-                            } else {
-                                allContributions.push( defaultContribution );
+                            } else {
+                                tmpAllContributions.push( {
+                                    "date" : null,
+                                    "level" : null
+                                } );
                             }
 
                             tmpDay.removeDays(1);
-                        }
+                        };
+
+                        allContributions.reverse();
+                        allContributions = allContributions.concat(tmpAllContributions);
 
                         setGrid( allContributions );
                     }
