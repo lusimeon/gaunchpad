@@ -9,14 +9,9 @@ const Launchpad = require( "launchpad-mini" ),
       request = require("request");
 
 const today = Date.today(),
-      numberDays = 56,
       numberRows = 7;
 
 let err = null;
-
-let tmpNumberDays = numberDays - (7 - today.getDay());
-
-const firstDay = today.clone().removeDays(tmpNumberDays);
 
 const levelSteps = {
     min : 1,
@@ -31,7 +26,7 @@ const levelColors = {
     disabled : pad.red.low
 }
 
-let usernameIsValid = (url, callback) => {
+let usernameIsValid = (url, firstDay, callback) => {
     let isValid = false
     request(url, function (error, response, body) {
         if (!error && response.statusCode == 200) {
@@ -39,12 +34,12 @@ let usernameIsValid = (url, callback) => {
         }
         
         if ( callback !== undefined ) {
-            callback( isValid );
+            callback( isValid, firstDay );
         }
     });
 }
 
-let getValidContributions = ( userUrl, callback ) => {
+let getValidContributions = ( userUrl, firstDay, callback ) => {
     let validContributions = [];
     gh.scrapeContributionDataAndStats( userUrl, (data) => {
         if ( data ) {
@@ -71,7 +66,7 @@ let getValidContributions = ( userUrl, callback ) => {
         }
 
         if ( callback !== undefined ) {
-            callback( validContributions );
+            callback( validContributions, firstDay );
         }
     });
 };
@@ -117,12 +112,17 @@ let setGrid = ( allContributions ) => {
     } );
 }
 
-let gaunchpad = (username) => {
+let gaunchpad = (username, options) => {
     if (username !== undefined && username !== null) {
         let userUrl = "http://github.com/" + username;
-        usernameIsValid( userUrl, (isValid)  => {
+        const numberDays = (options.number_pads !== undefined) ? options.number_pads : 56;
+
+        let tmpNumberDays = numberDays - (7 - today.getDay());
+        const firstDay = today.clone().removeDays(tmpNumberDays);
+
+        usernameIsValid( userUrl, firstDay, (isValid, firstDay)  => {
             if ( isValid !== undefined && isValid === true ) {
-                getValidContributions( userUrl, ( validContributions ) => {
+                getValidContributions( userUrl, firstDay, ( validContributions, firstDay ) => {
                     if ( validContributions !== null ) {
                         let allContributions = [];
                         let tmpAllContributions = [];
@@ -178,9 +178,11 @@ let gaunchpad = (username) => {
 };
 
 program
+    .command('gaunchpad <username>', 'Get GIT Launchpad viz')
     .arguments( "<username>" )
-    .action( (username) => {
-        gaunchpad(username);
+    .option("-np, --number_pads [number]", "Number of pads on launchpad")
+    .action( (username, options) => {
+        gaunchpad(username, options);
     } )
     .parse(process.argv);
 
