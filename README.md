@@ -1,3 +1,5 @@
+# [DEPRECATED]
+
 # Gaunchpad 
 > Visualize your Github contributions on a Novation Launchpad Mini
 

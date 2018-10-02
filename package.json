@@ -5,7 +5,7 @@
     "private": true,
     "author": "Lucas Simeon (@lusimeon)",
     "main": "main.js",
-    "bin" : {
+    "bin": {
         "gaunchpad": "./main.js"
     },
     "scripts": {
